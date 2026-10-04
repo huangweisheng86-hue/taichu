@@ -40,14 +40,68 @@ const PHYSIQUES = [
     {name:"诸天湮灭体", cultivateBonus:420, pillBonus:2000, rarity:6}
 ];
 
+// ============ 怪物表 ============
+// 每只怪有：名字、要求修为、掉落灵石范围、掉落灵草数量
+const MONSTERS = [
+    {name:"野兔",   reqPower: 0,    stone:[5, 15],   herb: 0},
+    {name:"灰狼",   reqPower: 50,   stone:[15, 40],  herb: 1},
+    {name:"山猪",   reqPower: 150,  stone:[30, 80],  herb: 1},
+    {name:"毒蛇",   reqPower: 400,  stone:[80, 200], herb: 2},
+    {name:"黑熊",   reqPower: 1000, stone:[200, 500], herb: 2},
+    {name:"妖狐",   reqPower: 3000, stone:[500, 1200], herb: 3},
+    {name:"火麟兽", reqPower: 8000, stone:[1200, 3000], herb: 4},
+    {name:"雷鹰",   reqPower: 20000, stone:[3000, 8000], herb: 5},
+    {name:"蛟龙",   reqPower: 60000, stone:[8000, 20000], herb: 6},
+    {name:"千年树妖", reqPower: 200000, stone:[20000, 60000], herb: 8},
+    {name:"上古凶兽", reqPower: 800000, stone:[60000, 150000], herb: 10},
+    {name:"太古魔龙", reqPower: 3000000, stone:[150000, 500000], herb: 15}
+];
+
+// ============ 丹药表（价格按灵石算，贵！）============
 const PILLS = {
-    "初级修为丹": {price: 10, effect: {power: 100}, desc: "+100 修为"},
-    "中级修为丹": {price: 100, effect: {power: 1000}, desc: "+1000 修为"},
-    "高级修为丹": {price: 1000, effect: {power: 10000}, desc: "+10000 修为"},
-    "极品修为丹": {price: 5000, effect: {power: 100000}, desc: "+10万 修为"},
-    "仙品修为丹": {price: 20000, effect: {power: 1000000}, desc: "+100万 修为"},
-    "洗髓丹": {price: 500, effect: {refineRoot: true}, desc: "随机改变灵根"},
-    "天地元素丹": {price: 800, effect: {refineElements: true}, desc: "重铸元素"}
+    "初级修为丹":   {price: 100,     effect: {power: 100},       desc: "+100 修为"},
+    "中级修为丹":   {price: 1000,    effect: {power: 1000},      desc: "+1000 修为"},
+    "高级修为丹":   {price: 10000,   effect: {power: 10000},     desc: "+10000 修为"},
+    "极品修为丹":   {price: 100000,  effect: {power: 100000},    desc: "+10万 修为"},
+    "仙品修为丹":   {price: 1000000, effect: {power: 1000000},   desc: "+100万 修为"},
+    "洗髓丹":       {price: 50000,   effect: {refineRoot: true}, desc: "随机改变灵根"},
+    "天地元素丹":   {price: 80000,   effect: {refineElements: true}, desc: "重铸元素"},
+    // 突破丹
+    "初级突破丹":   {price: 500,     effect: {breakthroughPill: true}, desc: "突破到 淬体~开源 用"},
+    "中级突破丹":   {price: 5000,    effect: {breakthroughPill: true}, desc: "突破到 筑基~化神 用"},
+    "高级突破丹":   {price: 50000,   effect: {breakthroughPill: true}, desc: "突破到 练虚~圣皇 用"},
+    "顶级突破丹":   {price: 500000,  effect: {breakthroughPill: true}, desc: "突破到 仙骨~仙尊 用"},
+    "仙级突破丹":   {price: 5000000, effect: {breakthroughPill: true}, desc: "突破到 仙帝~大帝 用"},
+    "神级突破丹":   {price: 50000000, effect: {breakthroughPill: true}, desc: "突破到 天帝~太初之主 用"}
+};
+
+// ============ 突破丹对应境界 ============
+function getBreakthroughPill(realmIndex) {
+    if (realmIndex <= 4) return "初级突破丹";
+    if (realmIndex <= 8) return "中级突破丹";
+    if (realmIndex <= 16) return "高级突破丹";
+    if (realmIndex <= 24) return "顶级突破丹";
+    if (realmIndex <= 27) return "仙级突破丹";
+    if (realmIndex <= 30) return "神级突破丹";
+    return "神级突破丹";
+}
+
+// ============ 炼丹配方 ============
+// 每种丹药需要多少灵草，成功率
+const ALCHEMY = {
+    "初级修为丹": {herb: 3,  success: 0.9},
+    "中级修为丹": {herb: 8,  success: 0.8},
+    "高级修为丹": {herb: 20, success: 0.7},
+    "极品修为丹": {herb: 50, success: 0.6},
+    "仙品修为丹": {herb: 120, success: 0.5},
+    "洗髓丹":     {herb: 30, success: 0.4},
+    "天地元素丹": {herb: 50, success: 0.4},
+    "初级突破丹": {herb: 10, success: 0.85},
+    "中级突破丹": {herb: 40, success: 0.7},
+    "高级突破丹": {herb: 100, success: 0.6},
+    "顶级突破丹": {herb: 250, success: 0.5},
+    "仙级突破丹": {herb: 600, success: 0.4},
+    "神级突破丹": {herb: 1500, success: 0.3}
 };
 
 let player = null;
@@ -68,6 +122,8 @@ function defaultPlayer() {
     return {
         power: 0, realmIndex: 0, stageIndex: 0,
         mana: 100, maxMana: 100,
+        stone: 0,
+        herb: 0,
         lawPower: 50,
         root: root,
         elements: generateRandomElements(),
@@ -135,7 +191,7 @@ function generateRandomPhysique() {
 }
 
 // ============ 存档 ============
-const SAVE_KEY = "taichu_xiuxian_save_v1";
+const SAVE_KEY = "taichu_xiuxian_save_v2";
 
 function saveGame(silent) {
     try {
@@ -157,6 +213,8 @@ function loadGame() {
         }
         if (!p.items) p.items = {};
         if (p.lastCultivate === undefined) p.lastCultivate = 0;
+        if (p.stone === undefined) p.stone = 0;
+        if (p.herb === undefined) p.herb = 0;
         return p;
     } catch (e) { return null; }
 }
@@ -196,11 +254,13 @@ function refreshUI() {
     document.getElementById("realm-name").textContent = realmList[rs.realmIndex] || "未知";
     document.getElementById("realm-stage").textContent = STAGES[rs.stageIndex] || "";
     document.getElementById("stat-power").textContent = q.toLocaleString();
+    document.getElementById("stat-stone").textContent = player.stone.toLocaleString();
     document.getElementById("stat-mana").textContent = `${player.mana}/${player.maxMana}`;
     document.getElementById("stat-law").textContent = player.lawPower;
     document.getElementById("stat-root").textContent = ROOTS[player.root];
     document.getElementById("stat-physique").textContent = player.physique;
     document.getElementById("stat-elements").textContent = player.elements.join("·") || "无";
+    document.getElementById("stat-herb").textContent = player.herb;
 
     const percent = Math.min(100, (absQ / (absQ + rs.needForNext)) * 100);
     document.getElementById("progress-bar").style.width = percent + "%";
@@ -266,6 +326,61 @@ function cultivate(isMo) {
     saveGame(true);
 }
 
+// ============ 打怪 ============
+function fight() {
+    const q = player.power;
+    const absQ = q >= 0 ? q : -q;
+
+    // 找到玩家当前打得过的怪中，最强的一只
+    let strongest = null;
+    for (const m of MONSTERS) {
+        if (absQ >= m.reqPower) strongest = m;
+        else break;
+    }
+
+    if (!strongest) {
+        log(`⚠️ 你修为太低，连最弱的野兔都打不过！先去修炼吧。`, "orange");
+        return;
+    }
+
+    // 5% 概率遇到更强的怪（要求 = 当前 * 1.5）
+    let monster = strongest;
+    if (Math.random() < 0.05) {
+        const nextIdx = MONSTERS.indexOf(strongest) + 1;
+        if (nextIdx < MONSTERS.length && absQ < MONSTERS[nextIdx].reqPower) {
+            monster = MONSTERS[nextIdx];
+            log(`⚡ 意外遭遇更强怪物：${monster.name}！`, "orange");
+        }
+    }
+
+    // 判定胜负
+    const winChance = absQ / monster.reqPower;
+    if (winChance >= 1) {
+        // 稳赢
+        const stone = Math.floor(Math.random() * (monster.stone[1] - monster.stone[0] + 1)) + monster.stone[0];
+        const herbGain = monster.herb > 0 ? Math.floor(Math.random() * (monster.herb + 1)) : 0;
+        player.stone += stone;
+        player.herb += herbGain;
+        const powerGain = Math.floor(monster.reqPower * 0.05);
+        player.power += q >= 0 ? powerGain : -powerGain;
+        log(`⚔️ 你击败了【${monster.name}】！`, "lime");
+        log(`  获得灵石 +${stone}，灵草 +${herbGain}，修为 +${powerGain}`, "cyan");
+        if (typeof broadcastSys === "function" && Math.random() < 0.1) {
+            broadcastSys(`${playerName} 击败了【${monster.name}】！`);
+        }
+    } else {
+        // 打不过
+        const lose = Math.floor(monster.reqPower * 0.1);
+        player.power -= q >= 0 ? lose : -lose;
+        player.mana = Math.max(0, player.mana - 30);
+        log(`💀 你挑战【${monster.name}】失败！修为 -${lose}，灵力 -30。`, "red");
+    }
+
+    checkBreakthrough();
+    refreshUI();
+    saveGame(true);
+}
+
 // ============ 历练 ============
 function adventure() {
     const roll = Math.random();
@@ -274,26 +389,31 @@ function adventure() {
         log(`🗡 你遇到妖兽袭击，灵力 -20！`, "red");
     } else if (roll < 0.35) {
         log(`🍃 你游历一番，一无所获。`, "gray");
-    } else if (roll < 0.75) {
+    } else if (roll < 0.7) {
         const gain = Math.floor(Math.random() * 100) + 20;
         player.power += gain;
         log(`💎 你发现一处灵矿，修为 +${gain}。`, "cyan");
-    } else if (roll < 0.95) {
+    } else if (roll < 0.9) {
         const gain = Math.floor(Math.random() * 300) + 100;
+        const herb = Math.floor(Math.random() * 3) + 1;
         player.power += gain;
-        log(`🌟 你误入灵脉之地，修为 +${gain}！`, "gold");
+        player.herb += herb;
+        log(`🌟 你误入灵脉之地，修为 +${gain}，灵草 +${herb}！`, "gold");
     } else {
+        const herb = Math.floor(Math.random() * 8) + 3;
         player.power += 1000;
+        player.stone += 500;
+        player.herb += herb;
         player.lawPower += 10;
         player.mana = player.maxMana;
-        log(`⭐ 天降奇缘！修为 +1000，法则能量 +10，灵力全满！`, "gold");
+        log(`⭐ 天降奇缘！修为 +1000，灵石 +500，灵草 +${herb}，法则 +10！`, "gold");
     }
     checkBreakthrough();
     refreshUI();
     saveGame(true);
 }
 
-// ============ 突破 ============
+// ============ 突破（大境界要丹）============
 function breakthrough() {
     const absQ = player.power >= 0 ? player.power : -player.power;
     const rs = calcRealmStage(absQ);
@@ -301,6 +421,25 @@ function breakthrough() {
         log("❌ 已至当前境界巅峰，无法继续突破。", "red");
         return;
     }
+
+    // 判断：这次突破是否跨大境界？
+    // 小境界突破：当前 stageIndex 不是最后一个，且加上 needForNext 后 stageIndex 会变，但 realmIndex 不变
+    // 简单判断：needForNext 加上后，realmIndex 是否会 +1
+    const willRealmUp = (rs.stageIndex === STAGES.length - 1);
+
+    if (willRealmUp) {
+        // 需要突破丹
+        const pillName = getBreakthroughPill(rs.realmIndex + 1);
+        if (!player.items[pillName] || player.items[pillName] <= 0) {
+            log(`❌ 突破大境界需要【${pillName}】，你没有！去坊市买或炼丹炉炼。`, "red");
+            return;
+        }
+        player.items[pillName]--;
+        if (player.items[pillName] <= 0) delete player.items[pillName];
+        log(`✨ 消耗【${pillName}】！`, "gold");
+    }
+
+    // 修为推进
     const gain = rs.needForNext;
     player.power += player.power >= 0 ? gain : -gain;
     log(`⚡ 强行突破，修为 +${gain}！`, "orange");
@@ -361,16 +500,10 @@ function showFlash() {
 
 // ============ 法则 ============
 function useLawPower() {
-    if (player.lawPower < 1) {
-        log("❌ 法则能量不足！", "red");
-        return;
-    }
+    if (player.lawPower < 1) { log("❌ 法则能量不足！", "red"); return; }
     player.lawPower -= 1;
     const elements = player.elements;
-    if (elements.length === 0) {
-        log("❌ 你没有任何元素！", "red");
-        return;
-    }
+    if (elements.length === 0) { log("❌ 你没有任何元素！", "red"); return; }
     const e = elements[Math.floor(Math.random() * elements.length)];
     const data = player.lawElements[e] || {exp: 0, level: 0};
     data.exp += 1;
@@ -391,13 +524,14 @@ function getElementLevelName(level) {
     return ["一窍不通","初窥门径","小有所成","登堂入室","炉火纯青","登峰造极"][level] || "未知";
 }
 
-// ============ 坊市 ============
+// ============ 坊市（灵石消费）============
 function shop() {
     const items = Object.entries(PILLS);
-    log("🏪 坊市：", "gold");
+    log("🏪 坊市（使用灵石购买）：", "gold");
+    log(`💰 你的灵石：${player.stone.toLocaleString()}`, "cyan");
     items.forEach(([name, info], idx) => {
         const owned = player.items[name] || 0;
-        log(`  [${idx+1}] ${name} - ${info.price} 法则能量（${info.desc}）持有 ${owned}`, "gray");
+        log(`  [${idx+1}] ${name} - ${info.price.toLocaleString()} 灵石（${info.desc}）持有 ${owned}`, "gray");
     });
     log("💡 在聊天框输入「买 丹药名」或「用 丹药名」", "orange");
 }
@@ -405,13 +539,13 @@ function shop() {
 function buyPill(name) {
     const pill = PILLS[name];
     if (!pill) { log(`❌ 没有这种丹药：${name}`, "red"); return; }
-    if (player.lawPower < pill.price) {
-        log(`❌ 法则能量不足，需要 ${pill.price}，当前 ${player.lawPower}`, "red");
+    if (player.stone < pill.price) {
+        log(`❌ 灵石不足，需要 ${pill.price.toLocaleString()}，当前 ${player.stone.toLocaleString()}`, "red");
         return;
     }
-    player.lawPower -= pill.price;
+    player.stone -= pill.price;
     player.items[name] = (player.items[name] || 0) + 1;
-    log(`🛒 你购买了【${name}】，剩余法则能量 ${player.lawPower}。`, "lime");
+    log(`🛒 你购买了【${name}】，剩余灵石 ${player.stone.toLocaleString()}。`, "lime");
     refreshUI();
     saveGame(true);
 }
@@ -428,7 +562,7 @@ function usePill(name) {
 
     if (pill.effect.power) {
         player.power += pill.effect.power;
-        log(`✨ 服用【${name}】，修为 +${pill.effect.power}！`, "gold");
+        log(`✨ 服用【${name}】，修为 +${pill.effect.power.toLocaleString()}！`, "gold");
     }
     if (pill.effect.refineRoot) {
         const old = player.root;
@@ -437,9 +571,8 @@ function usePill(name) {
         if (rand < 0.3) newRoot = old;
         else if (rand < 0.5) newRoot = Math.max(0, old - 1);
         else newRoot = Math.min(ROOTS.length - 1, old + 1);
-        if (newRoot === old) {
-            log(`🍃 服用洗髓丹，但灵根未变，仍是 ${ROOTS[old]}`, "orange");
-        } else {
+        if (newRoot === old) log(`🍃 服用洗髓丹，但灵根未变，仍是 ${ROOTS[old]}`, "orange");
+        else {
             player.root = newRoot;
             log(`✨ 洗髓成功！灵根由 ${ROOTS[old]} 变为 ${ROOTS[newRoot]}！`, "gold");
             if (typeof broadcastSys === "function") broadcastSys(`${playerName} 洗髓成功，灵根升级为 ${ROOTS[newRoot]}！`);
@@ -458,6 +591,39 @@ function usePill(name) {
     saveGame(true);
 }
 
+// ============ 炼丹炉 ============
+function alchemy() {
+    log("⚗️ 炼丹炉（消耗灵草炼丹）：", "gold");
+    log(`🌿 你的灵草：${player.herb}`, "lime");
+    const entries = Object.entries(ALCHEMY);
+    entries.forEach(([name, info], idx) => {
+        const owned = player.items[name] || 0;
+        log(`  [${idx+1}] ${name} - 灵草 ${info.herb}（成功率 ${(info.success*100).toFixed(0)}%）持有 ${owned}`, "gray");
+    });
+    log("💡 输入「炼 丹药名」开始炼丹", "orange");
+}
+
+function craftPill(name) {
+    const recipe = ALCHEMY[name];
+    if (!recipe) { log(`❌ 没有这种丹方：${name}`, "red"); return; }
+    if (player.herb < recipe.herb) {
+        log(`❌ 灵草不足，需要 ${recipe.herb}，当前 ${player.herb}`, "red");
+        return;
+    }
+    player.herb -= recipe.herb;
+    if (Math.random() < recipe.success) {
+        player.items[name] = (player.items[name] || 0) + 1;
+        log(`✨ 炼丹成功！获得【${name}】×1`, "gold");
+        if (typeof broadcastSys === "function" && Math.random() < 0.3) {
+            broadcastSys(`${playerName} 炼出了【${name}】！`);
+        }
+    } else {
+        log(`💥 炼丹失败！${recipe.herb} 灵草化为灰烬。`, "red");
+    }
+    refreshUI();
+    saveGame(true);
+}
+
 // ============ 查看详情 ============
 function showStatus() {
     const q = player.power;
@@ -468,6 +634,8 @@ function showStatus() {
     log(`━━━━━━━━ 📜 玩家详情 ━━━━━━━━`, "gold");
     log(`境界：${realmList[rs.realmIndex]}·${STAGES[rs.stageIndex]}`, "cyan");
     log(`修为：${q.toLocaleString()}`, "lime");
+    log(`灵石：${player.stone.toLocaleString()}`, "gold");
+    log(`灵草：${player.herb}`, "lime");
     log(`灵力：${player.mana}/${player.maxMana}`, "cyan");
     log(`法则能量：${player.lawPower}`, "cyan");
     log(`灵根：${ROOTS[player.root]}（修炼加成 ×${ROOT_MULT[player.root]}）`, "orange");
@@ -485,6 +653,10 @@ function showStatus() {
         const d = player.lawElements[e] || {exp: 0, level: 0};
         log(`  ${e}：${d.exp} 经验 | ${getElementLevelName(d.level)}`, "gray");
     }
+
+    // 显示下一个突破丹需求
+    const nextPill = getBreakthroughPill(rs.realmIndex + 1);
+    log(`🧪 下一个大境界突破丹：${nextPill}`, "orange");
     log(`━━━━━━━━━━━━━━━━━━━━`, "gold");
 }
 
@@ -492,22 +664,19 @@ function showStatus() {
 function handleChat(cmd) {
     if (!cmd) return;
 
-    // 改名
     if (cmd.startsWith("改名 ")) {
         if (typeof changeName === "function") changeName(cmd.substring(3).trim());
         return;
     }
 
-    // 系统指令 → 本地处理
     if (cmd === "修为划分" || cmd === "体质划分" || cmd === "灵根划分" || cmd === "元素划分"
         || cmd === "查看详情" || cmd === "状态" || cmd === "坊市" || cmd === "帮助"
-        || cmd.startsWith("买 ") || cmd.startsWith("用 ") || cmd === "存档"
-        || cmd === "save" || cmd === "help") {
+        || cmd.startsWith("买 ") || cmd.startsWith("用 ") || cmd.startsWith("炼 ")
+        || cmd === "炼丹炉" || cmd === "存档" || cmd === "save" || cmd === "help") {
         handleLocalCommand(cmd);
         return;
     }
 
-    // 其他 → 发到聊天室
     if (typeof sendChat === "function") sendChat(cmd);
 }
 
@@ -515,8 +684,6 @@ function handleChat(cmd) {
 function handleLocalCommand(cmd) {
     if (cmd === "修为划分") {
         log("✨ 正道：" + REALMS.join(" → "), "gold");
-        log("🌑 魔道：" + EVIL_REALMS.join(" → "), "purple");
-        log("⚡ 阶段：" + STAGES.join(" → "), "cyan");
         return;
     }
     if (cmd === "体质划分") {
@@ -533,11 +700,14 @@ function handleLocalCommand(cmd) {
     }
     if (cmd === "查看详情" || cmd === "状态") { showStatus(); return; }
     if (cmd === "坊市") { shop(); return; }
+    if (cmd === "炼丹炉") { alchemy(); return; }
     if (cmd.startsWith("买 ")) { buyPill(cmd.substring(2).trim()); return; }
     if (cmd.startsWith("用 ")) { usePill(cmd.substring(2).trim()); return; }
+    if (cmd.startsWith("炼 ")) { craftPill(cmd.substring(2).trim()); return; }
     if (cmd === "存档" || cmd === "save") { saveGame(); return; }
     if (cmd === "帮助" || cmd === "help") {
-        log("📖 指令：修为划分 / 体质划分 / 灵根划分 / 元素划分 / 查看详情 / 坊市 / 买 丹药名 / 用 丹药名 / 存档 / 改名 新名字", "cyan");
+        log("📖 按钮：修炼 / 打怪 / 历练 / 突破 / 法则 / 坊市 / 炼丹炉 / 详情 / 存档 / 重置", "cyan");
+        log("💬 指令：买 丹药名 / 用 丹药名 / 炼 丹药名 / 改名 新名字", "cyan");
         log("💬 其他输入会作为聊天消息发给所有在线玩家", "cyan");
         return;
     }
@@ -550,10 +720,12 @@ document.getElementById("actions").addEventListener("click", e => {
     const action = btn.dataset.action;
     if (action === "cultivate") cultivate(false);
     else if (action === "cultivate-mo") cultivate(true);
+    else if (action === "fight") fight();
     else if (action === "adventure") adventure();
     else if (action === "breakthrough") breakthrough();
     else if (action === "use-law") useLawPower();
     else if (action === "shop") shop();
+    else if (action === "alchemy") alchemy();
     else if (action === "status") showStatus();
     else if (action === "save") saveGame();
     else if (action === "reset") {
@@ -593,7 +765,6 @@ function start() {
     refreshUI();
 }
 
-// 等 chat.js 加载完再启动
 if (typeof firebase !== "undefined") {
     setTimeout(start, 200);
 } else {
