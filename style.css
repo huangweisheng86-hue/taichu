@@ -10,13 +10,13 @@ body {
     justify-content: center;
 }
 
-#app { max-width: 700px; width: 100%; }
+#app { max-width: 720px; width: 100%; }
 
 header { text-align: center; margin-bottom: 20px; }
 
 header h1 {
     color: #ffd700;
-    font-size: 28px;
+    font-size: 26px;
     text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
     letter-spacing: 4px;
     margin-bottom: 10px;
@@ -81,12 +81,12 @@ header h1 {
     margin-bottom: 20px;
 }
 #actions button {
-    padding: 14px;
+    padding: 12px;
     background: linear-gradient(180deg, #16213e, #0a0a20);
     color: #d0d0f0;
     border: 1px solid #333366;
     border-radius: 8px;
-    font-size: 15px;
+    font-size: 14px;
     cursor: pointer;
     transition: all 0.2s;
     font-family: inherit;
@@ -108,7 +108,7 @@ header h1 {
     border: 1px solid #333366;
     border-radius: 10px;
     padding: 15px;
-    height: 220px;
+    height: 240px;
     overflow-y: auto;
     font-size: 14px;
     line-height: 1.7;
