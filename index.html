@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>太初烬寰 · 修仙模拟器</title>
@@ -47,11 +49,13 @@
         <div id="chat-area">
             <div id="chat-log"></div>
             <div id="chat-input-wrap">
-                <input type="text" id="chat-input" placeholder="输入指令或聊天（如：修为划分 / 体质划分 / 灵根划分 / 元素划分）" />
+                <input type="text" id="chat-input" placeholder="输入聊天 / 指令（改名 张三 / 修为划分 / 帮助）" />
                 <button id="chat-send">发送</button>
             </div>
         </div>
     </div>
+
+    <script src="chat.js"></script>
     <script src="game.js"></script>
 </body>
 </html>
