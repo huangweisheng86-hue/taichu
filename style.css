@@ -10,15 +10,9 @@ body {
     justify-content: center;
 }
 
-#app {
-    max-width: 700px;
-    width: 100%;
-}
+#app { max-width: 700px; width: 100%; }
 
-header {
-    text-align: center;
-    margin-bottom: 20px;
-}
+header { text-align: center; margin-bottom: 20px; }
 
 header h1 {
     color: #ffd700;
@@ -51,11 +45,7 @@ header h1 {
     font-size: 14px;
 }
 
-.stat {
-    display: flex;
-    justify-content: space-between;
-    padding: 4px 8px;
-}
+.stat { display: flex; justify-content: space-between; padding: 4px 8px; }
 .stat span { color: #8888bb; }
 .stat b { color: #ffdd66; }
 
@@ -106,12 +96,11 @@ header h1 {
     color: #ffd700;
     box-shadow: 0 0 12px rgba(255, 215, 0, 0.3);
 }
-#actions button:active {
-    transform: scale(0.97);
-}
+#actions button:active { transform: scale(0.97); }
 #actions button:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+    filter: grayscale(0.5);
 }
 
 #log {
@@ -119,15 +108,13 @@ header h1 {
     border: 1px solid #333366;
     border-radius: 10px;
     padding: 15px;
-    height: 260px;
+    height: 220px;
     overflow-y: auto;
     font-size: 14px;
     line-height: 1.7;
+    margin-bottom: 15px;
 }
-#log .line {
-    margin-bottom: 6px;
-    animation: fadeIn 0.3s ease;
-}
+#log .line { margin-bottom: 6px; animation: fadeIn 0.3s ease; }
 #log .line.gold { color: #ffd700; }
 #log .line.cyan { color: #00ffff; }
 #log .line.lime { color: #88ff88; }
@@ -136,12 +123,54 @@ header h1 {
 #log .line.purple { color: #cc88ff; }
 #log .line.gray { color: #888888; }
 
+#chat-area {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid #333366;
+    border-radius: 10px;
+    padding: 12px;
+}
+#chat-log {
+    height: 100px;
+    overflow-y: auto;
+    font-size: 13px;
+    line-height: 1.6;
+    margin-bottom: 8px;
+    color: #aaaacc;
+}
+#chat-log .line { margin-bottom: 3px; }
+#chat-log .line.sys { color: #ffaa44; }
+#chat-log .line.me { color: #00ffff; }
+#chat-log .line.broadcast { color: #ffd700; }
+
+#chat-input-wrap { display: flex; gap: 8px; }
+#chat-input {
+    flex: 1;
+    padding: 10px;
+    background: #0a0a20;
+    border: 1px solid #333366;
+    border-radius: 6px;
+    color: #d0d0f0;
+    font-family: inherit;
+    font-size: 14px;
+    outline: none;
+}
+#chat-input:focus { border-color: #ffd700; }
+#chat-send {
+    padding: 10px 20px;
+    background: linear-gradient(180deg, #16213e, #0a0a20);
+    color: #d0d0f0;
+    border: 1px solid #333366;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+}
+#chat-send:hover { border-color: #ffd700; color: #ffd700; }
+
 @keyframes fadeIn {
     from { opacity: 0; transform: translateX(-10px); }
     to { opacity: 1; transform: translateX(0); }
 }
 
-/* 突破特效 */
 .breakthrough-flash {
     position: fixed;
     inset: 0;
