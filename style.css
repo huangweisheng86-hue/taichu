@@ -1,0 +1,156 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    background: radial-gradient(ellipse at top, #1a1a3a 0%, #050510 100%);
+    color: #d0d0f0;
+    font-family: "Microsoft YaHei", sans-serif;
+    min-height: 100vh;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+#app {
+    max-width: 700px;
+    width: 100%;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+header h1 {
+    color: #ffd700;
+    font-size: 28px;
+    text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+    letter-spacing: 4px;
+    margin-bottom: 10px;
+}
+
+#realm-bar {
+    font-size: 20px;
+    color: #00ffff;
+    text-shadow: 0 0 10px rgba(0, 255, 255, 0.6);
+}
+#realm-bar #realm-stage {
+    color: #ff88ff;
+    margin-left: 8px;
+    font-size: 16px;
+}
+
+#stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    background: rgba(20, 20, 50, 0.7);
+    border: 1px solid #333366;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 15px;
+    font-size: 14px;
+}
+
+.stat {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 8px;
+}
+.stat span { color: #8888bb; }
+.stat b { color: #ffdd66; }
+
+#progress-wrap {
+    position: relative;
+    height: 22px;
+    background: #0a0a20;
+    border: 1px solid #333366;
+    border-radius: 11px;
+    overflow: hidden;
+    margin-bottom: 20px;
+}
+#progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #6633ff, #ff33cc);
+    transition: width 0.4s ease;
+}
+#progress-text {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    text-align: center;
+    line-height: 22px;
+    font-size: 12px;
+    color: #fff;
+    text-shadow: 0 0 4px #000;
+}
+
+#actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+#actions button {
+    padding: 14px;
+    background: linear-gradient(180deg, #16213e, #0a0a20);
+    color: #d0d0f0;
+    border: 1px solid #333366;
+    border-radius: 8px;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+#actions button:hover {
+    border-color: #ffd700;
+    color: #ffd700;
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.3);
+}
+#actions button:active {
+    transform: scale(0.97);
+}
+#actions button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+#log {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid #333366;
+    border-radius: 10px;
+    padding: 15px;
+    height: 260px;
+    overflow-y: auto;
+    font-size: 14px;
+    line-height: 1.7;
+}
+#log .line {
+    margin-bottom: 6px;
+    animation: fadeIn 0.3s ease;
+}
+#log .line.gold { color: #ffd700; }
+#log .line.cyan { color: #00ffff; }
+#log .line.lime { color: #88ff88; }
+#log .line.red { color: #ff6666; }
+#log .line.orange { color: #ffaa44; }
+#log .line.purple { color: #cc88ff; }
+#log .line.gray { color: #888888; }
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+/* 突破特效 */
+.breakthrough-flash {
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(circle, rgba(255,215,0,0.6), transparent 70%);
+    pointer-events: none;
+    animation: flash 1s ease;
+    z-index: 999;
+}
+@keyframes flash {
+    0% { opacity: 1; }
+    100% { opacity: 0; }
+}
