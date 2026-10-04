@@ -40,7 +40,6 @@ const PHYSIQUES = [
     {name:"诸天湮灭体", cultivateBonus:420, pillBonus:2000, rarity:6}
 ];
 
-// ============ 丹药表 ============
 const PILLS = {
     "初级修为丹": {price: 10, effect: {power: 100}, desc: "+100 修为"},
     "中级修为丹": {price: 100, effect: {power: 1000}, desc: "+1000 修为"},
@@ -51,7 +50,6 @@ const PILLS = {
     "天地元素丹": {price: 800, effect: {refineElements: true}, desc: "重铸元素"}
 };
 
-// ============ 玩家数据 ============
 let player = null;
 
 function defaultPlayer() {
@@ -68,20 +66,16 @@ function defaultPlayer() {
     for (const e of ELEMENTS) lawElements[e] = {exp: 0, level: 0};
 
     return {
-        power: 0,
-        realmIndex: 0,
-        stageIndex: 0,
-        mana: 100,
-        maxMana: 100,
-        lawPower: 50,      // 初始给 50 好买丹药
+        power: 0, realmIndex: 0, stageIndex: 0,
+        mana: 100, maxMana: 100,
+        lawPower: 50,
         root: root,
         elements: generateRandomElements(),
         physique: generateRandomPhysique(),
         lawElements: lawElements,
-        items: {},         // 背包：{丹药名: 数量}
-        age: 16,
-        life: 80,
-        lastCultivate: 0   // 冷却时间戳
+        items: {},
+        age: 16, life: 80,
+        lastCultivate: 0
     };
 }
 
@@ -140,7 +134,7 @@ function generateRandomPhysique() {
     return "凡体";
 }
 
-// ============ 备份存档 ============
+// ============ 存档 ============
 const SAVE_KEY = "taichu_xiuxian_save_v1";
 
 function saveGame(silent) {
@@ -157,7 +151,6 @@ function loadGame() {
         const data = localStorage.getItem(SAVE_KEY);
         if (!data) return null;
         const p = JSON.parse(data);
-        // 兼容性补全
         if (!p.lawElements) p.lawElements = {};
         for (const e of ELEMENTS) {
             if (!p.lawElements[e]) p.lawElements[e] = {exp: 0, level: 0};
@@ -165,9 +158,7 @@ function loadGame() {
         if (!p.items) p.items = {};
         if (p.lastCultivate === undefined) p.lastCultivate = 0;
         return p;
-    } catch (e) {
-        return null;
-    }
+    } catch (e) { return null; }
 }
 
 // ============ 日志 ============
@@ -181,9 +172,9 @@ function log(text, color = "gray") {
     while (logEl.children.length > 100) logEl.removeChild(logEl.firstChild);
 }
 
-// 聊天区日志
 function chatLog(text, cls = "sys") {
     const el = document.getElementById("chat-log");
+    if (!el) return;
     const line = document.createElement("div");
     line.className = "line " + cls;
     line.textContent = text;
@@ -204,7 +195,6 @@ function refreshUI() {
 
     document.getElementById("realm-name").textContent = realmList[rs.realmIndex] || "未知";
     document.getElementById("realm-stage").textContent = STAGES[rs.stageIndex] || "";
-
     document.getElementById("stat-power").textContent = q.toLocaleString();
     document.getElementById("stat-mana").textContent = `${player.mana}/${player.maxMana}`;
     document.getElementById("stat-law").textContent = player.lawPower;
@@ -212,19 +202,18 @@ function refreshUI() {
     document.getElementById("stat-physique").textContent = player.physique;
     document.getElementById("stat-elements").textContent = player.elements.join("·") || "无";
 
-    const need = needForStage(rs.realmIndex, rs.stageIndex);
     const percent = Math.min(100, (absQ / (absQ + rs.needForNext)) * 100);
     document.getElementById("progress-bar").style.width = percent + "%";
     document.getElementById("progress-text").textContent = `距离下一阶段还需 ${rs.needForNext.toLocaleString()} 修为`;
 
-    // 修炼冷却按钮状态
     updateCooldownButton();
 }
 
-// ============ 修炼冷却 ============
-const CULTIVATE_CD = 3000; // 3 秒冷却
+// ============ 冷却 ============
+const CULTIVATE_CD = 3000;
 
 function updateCooldownButton() {
+    if (!player) return;
     const now = Date.now();
     const remain = Math.max(0, CULTIVATE_CD - (now - player.lastCultivate));
     const btns = document.querySelectorAll('[data-action="cultivate"], [data-action="cultivate-mo"]');
@@ -274,7 +263,7 @@ function cultivate(isMo) {
     player.mana = Math.min(player.maxMana, player.mana + 5);
     checkBreakthrough();
     refreshUI();
-    saveGame(true); // 静默自动存档
+    saveGame(true);
 }
 
 // ============ 历练 ============
@@ -320,7 +309,7 @@ function breakthrough() {
     saveGame(true);
 }
 
-// ============ 检查突破 ============
+// ============ 突破检测 ============
 let lastRealmKey = "";
 function checkBreakthrough() {
     const q = player.power;
@@ -342,14 +331,14 @@ function checkBreakthrough() {
             if (sign !== oldSign) {
                 if (sign === "good") {
                     log(`✨ 你顿悟正道，重返 ${realmList[rs.realmIndex]}·${STAGES[rs.stageIndex]}！`, "gold");
-                    chatLog(`✨ 你顿悟正道，重返 ${realmList[rs.realmIndex]}`, "broadcast");
+                    if (typeof broadcastSys === "function") broadcastSys(`${playerName} 顿悟正道，重返 ${realmList[rs.realmIndex]}！`);
                 } else {
                     log(`🌑 你堕入魔道，化身 ${realmList[rs.realmIndex]}·${STAGES[rs.stageIndex]}！`, "purple");
-                    chatLog(`🌑 你堕入魔道，化身 ${realmList[rs.realmIndex]}`, "broadcast");
+                    if (typeof broadcastSys === "function") broadcastSys(`${playerName} 堕入魔道，化身 ${realmList[rs.realmIndex]}！`);
                 }
             } else if (rs.realmIndex > oldRi) {
                 log(`🔥🔥🔥 突破大境界！进入【${realmList[rs.realmIndex]}】！`, "gold");
-                chatLog(`🔥 突破大境界！进入【${realmList[rs.realmIndex]}】`, "broadcast");
+                if (typeof broadcastSys === "function") broadcastSys(`${playerName} 突破大境界，进入【${realmList[rs.realmIndex]}】！`);
                 showFlash();
             } else if (rs.stageIndex > oldSi) {
                 log(`💠 突破小境界，进入【${STAGES[rs.stageIndex]}】。`, "cyan");
@@ -370,7 +359,7 @@ function showFlash() {
     setTimeout(() => flash.remove(), 1000);
 }
 
-// ============ 使用法则能量 ============
+// ============ 法则 ============
 function useLawPower() {
     if (player.lawPower < 1) {
         log("❌ 法则能量不足！", "red");
@@ -390,7 +379,7 @@ function useLawPower() {
         data.exp -= nextExp;
         data.level++;
         log(`✨ ${e}之法则突破至【${getElementLevelName(data.level)}】！`, "gold");
-        chatLog(`✨ ${e}之法则突破至【${getElementLevelName(data.level)}】`, "broadcast");
+        if (typeof broadcastSys === "function") broadcastSys(`${playerName} 的 ${e}之法则突破至【${getElementLevelName(data.level)}】！`);
     }
     player.lawElements[e] = data;
     log(`🔮 消耗 1 法则能量，${e}之法则经验 +1。`, "cyan");
@@ -402,7 +391,7 @@ function getElementLevelName(level) {
     return ["一窍不通","初窥门径","小有所成","登堂入室","炉火纯青","登峰造极"][level] || "未知";
 }
 
-// ============ 坊市 + 丹药 ============
+// ============ 坊市 ============
 function shop() {
     const items = Object.entries(PILLS);
     log("🏪 坊市：", "gold");
@@ -410,16 +399,12 @@ function shop() {
         const owned = player.items[name] || 0;
         log(`  [${idx+1}] ${name} - ${info.price} 法则能量（${info.desc}）持有 ${owned}`, "gray");
     });
-    log("💡 在下方聊天框输入「买 丹药名」或「用 丹药名」", "orange");
-    chatLog("🏪 你进入坊市，可用指令：买 初级修为丹 / 用 初级修为丹", "sys");
+    log("💡 在聊天框输入「买 丹药名」或「用 丹药名」", "orange");
 }
 
 function buyPill(name) {
     const pill = PILLS[name];
-    if (!pill) {
-        log(`❌ 没有这种丹药：${name}`, "red");
-        return;
-    }
+    if (!pill) { log(`❌ 没有这种丹药：${name}`, "red"); return; }
     if (player.lawPower < pill.price) {
         log(`❌ 法则能量不足，需要 ${pill.price}，当前 ${player.lawPower}`, "red");
         return;
@@ -427,7 +412,6 @@ function buyPill(name) {
     player.lawPower -= pill.price;
     player.items[name] = (player.items[name] || 0) + 1;
     log(`🛒 你购买了【${name}】，剩余法则能量 ${player.lawPower}。`, "lime");
-    chatLog(`🛒 购买【${name}】`, "me");
     refreshUI();
     saveGame(true);
 }
@@ -438,10 +422,7 @@ function usePill(name) {
         return;
     }
     const pill = PILLS[name];
-    if (!pill) {
-        log(`❌ 未知丹药：${name}`, "red");
-        return;
-    }
+    if (!pill) { log(`❌ 未知丹药：${name}`, "red"); return; }
     player.items[name]--;
     if (player.items[name] <= 0) delete player.items[name];
 
@@ -461,7 +442,7 @@ function usePill(name) {
         } else {
             player.root = newRoot;
             log(`✨ 洗髓成功！灵根由 ${ROOTS[old]} 变为 ${ROOTS[newRoot]}！`, "gold");
-            chatLog(`✨ 洗髓成功！灵根升级为 ${ROOTS[newRoot]}`, "broadcast");
+            if (typeof broadcastSys === "function") broadcastSys(`${playerName} 洗髓成功，灵根升级为 ${ROOTS[newRoot]}！`);
         }
     }
     if (pill.effect.refineElements) {
@@ -470,7 +451,7 @@ function usePill(name) {
         const newLawElements = {};
         for (const e of ELEMENTS) newLawElements[e] = {exp: 0, level: 0};
         player.lawElements = newLawElements;
-        log(`✨ 天地元素丹生效！元素由【${oldStr}】变为【${player.elements.join("·")}】，法则已重置。`, "purple");
+        log(`✨ 天地元素丹生效！元素由【${oldStr}】变为【${player.elements.join("·")}】。`, "purple");
     }
     checkBreakthrough();
     refreshUI();
@@ -493,7 +474,6 @@ function showStatus() {
     log(`体质：${player.physique}`, "gold");
     log(`元素：${player.elements.join("·") || "无"}`, "purple");
 
-    // 丹药
     const itemEntries = Object.entries(player.items);
     if (itemEntries.length > 0) {
         log(`📦 背包：`, "gold");
@@ -508,71 +488,62 @@ function showStatus() {
     log(`━━━━━━━━━━━━━━━━━━━━`, "gold");
 }
 
-// ============ 聊天指令 ============
+// ============ 聊天指令分流 ============
 function handleChat(cmd) {
     if (!cmd) return;
-    chatLog(`> ${cmd}`, "me");
 
-    // 修为划分
-    if (cmd === "修为划分") {
-        const msg = "✨ 正道：" + REALMS.join(" → ") + "\n🌑 魔道：" + EVIL_REALMS.join(" → ") + "\n⚡ 阶段：" + STAGES.join(" → ");
-        log(msg, "gold");
-        chatLog("📜 已输出修为体系", "sys");
-        return;
-    }
-    // 体质划分
-    if (cmd === "体质划分") {
-        PHYSIQUES.forEach(p => log(`${p.name} | 修炼 +${p.cultivateBonus} | 丹药 +${p.pillBonus} | 稀有度 ${p.rarity}`, "cyan"));
-        chatLog("📜 已输出体质体系", "sys");
-        return;
-    }
-    // 灵根划分
-    if (cmd === "灵根划分") {
-        ROOTS.forEach((r, i) => log(`${i}. ${r} | 修炼加成 ×${ROOT_MULT[i]}`, "orange"));
-        chatLog("📜 已输出灵根体系", "sys");
-        return;
-    }
-    // 元素划分
-    if (cmd === "元素划分") {
-        ELEMENTS.forEach(e => log(`元素：${e}`, "purple"));
-        chatLog("📜 已输出元素体系", "sys");
-        return;
-    }
-    // 查看详情
-    if (cmd === "查看详情" || cmd === "状态") {
-        showStatus();
-        return;
-    }
-    // 坊市
-    if (cmd === "坊市") {
-        shop();
-        return;
-    }
-    // 买 xxx
-    if (cmd.startsWith("买 ")) {
-        buyPill(cmd.substring(2).trim());
-        return;
-    }
-    // 用 xxx
-    if (cmd.startsWith("用 ")) {
-        usePill(cmd.substring(2).trim());
-        return;
-    }
-    // 存档
-    if (cmd === "存档" || cmd === "save") {
-        saveGame();
-        return;
-    }
-    // 帮助
-    if (cmd === "帮助" || cmd === "help") {
-        log("📖 可用指令：修为划分 / 体质划分 / 灵根划分 / 元素划分 / 查看详情 / 坊市 / 买 丹药名 / 用 丹药名 / 存档", "cyan");
+    // 改名
+    if (cmd.startsWith("改名 ")) {
+        if (typeof changeName === "function") changeName(cmd.substring(3).trim());
         return;
     }
 
-    log(`💬 未知指令：${cmd}`, "gray");
+    // 系统指令 → 本地处理
+    if (cmd === "修为划分" || cmd === "体质划分" || cmd === "灵根划分" || cmd === "元素划分"
+        || cmd === "查看详情" || cmd === "状态" || cmd === "坊市" || cmd === "帮助"
+        || cmd.startsWith("买 ") || cmd.startsWith("用 ") || cmd === "存档"
+        || cmd === "save" || cmd === "help") {
+        handleLocalCommand(cmd);
+        return;
+    }
+
+    // 其他 → 发到聊天室
+    if (typeof sendChat === "function") sendChat(cmd);
 }
 
-// ============ 事件绑定 ============
+// ============ 本地指令 ============
+function handleLocalCommand(cmd) {
+    if (cmd === "修为划分") {
+        log("✨ 正道：" + REALMS.join(" → "), "gold");
+        log("🌑 魔道：" + EVIL_REALMS.join(" → "), "purple");
+        log("⚡ 阶段：" + STAGES.join(" → "), "cyan");
+        return;
+    }
+    if (cmd === "体质划分") {
+        PHYSIQUES.forEach(p => log(`${p.name} | 修炼 +${p.cultivateBonus} | 丹药 +${p.pillBonus} | 稀有度 ${p.rarity}`, "cyan"));
+        return;
+    }
+    if (cmd === "灵根划分") {
+        ROOTS.forEach((r, i) => log(`${i}. ${r} | 修炼加成 ×${ROOT_MULT[i]}`, "orange"));
+        return;
+    }
+    if (cmd === "元素划分") {
+        ELEMENTS.forEach(e => log(`元素：${e}`, "purple"));
+        return;
+    }
+    if (cmd === "查看详情" || cmd === "状态") { showStatus(); return; }
+    if (cmd === "坊市") { shop(); return; }
+    if (cmd.startsWith("买 ")) { buyPill(cmd.substring(2).trim()); return; }
+    if (cmd.startsWith("用 ")) { usePill(cmd.substring(2).trim()); return; }
+    if (cmd === "存档" || cmd === "save") { saveGame(); return; }
+    if (cmd === "帮助" || cmd === "help") {
+        log("📖 指令：修为划分 / 体质划分 / 灵根划分 / 元素划分 / 查看详情 / 坊市 / 买 丹药名 / 用 丹药名 / 存档 / 改名 新名字", "cyan");
+        log("💬 其他输入会作为聊天消息发给所有在线玩家", "cyan");
+        return;
+    }
+}
+
+// ============ 按钮 ============
 document.getElementById("actions").addEventListener("click", e => {
     const btn = e.target.closest("button");
     if (!btn) return;
@@ -622,4 +593,9 @@ function start() {
     refreshUI();
 }
 
-start();
+// 等 chat.js 加载完再启动
+if (typeof firebase !== "undefined") {
+    setTimeout(start, 200);
+} else {
+    start();
+}
