@@ -130,7 +130,7 @@ header h1 {
     padding: 12px;
 }
 #chat-log {
-    height: 100px;
+    height: 120px;
     overflow-y: auto;
     font-size: 13px;
     line-height: 1.6;
