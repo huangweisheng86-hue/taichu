@@ -41,7 +41,6 @@ const PHYSIQUES = [
 ];
 
 // ============ 怪物表 ============
-// 每只怪有：名字、要求修为、掉落灵石范围、掉落灵草数量
 const MONSTERS = [
     {name:"野兔",   reqPower: 0,    stone:[5, 15],   herb: 0},
     {name:"灰狼",   reqPower: 50,   stone:[15, 40],  herb: 1},
@@ -57,7 +56,7 @@ const MONSTERS = [
     {name:"太古魔龙", reqPower: 3000000, stone:[150000, 500000], herb: 15}
 ];
 
-// ============ 丹药表（价格按灵石算，贵！）============
+// ============ 丹药表 ============
 const PILLS = {
     "初级修为丹":   {price: 100,     effect: {power: 100},       desc: "+100 修为"},
     "中级修为丹":   {price: 1000,    effect: {power: 1000},      desc: "+1000 修为"},
@@ -66,7 +65,6 @@ const PILLS = {
     "仙品修为丹":   {price: 1000000, effect: {power: 1000000},   desc: "+100万 修为"},
     "洗髓丹":       {price: 50000,   effect: {refineRoot: true}, desc: "随机改变灵根"},
     "天地元素丹":   {price: 80000,   effect: {refineElements: true}, desc: "重铸元素"},
-    // 突破丹
     "初级突破丹":   {price: 500,     effect: {breakthroughPill: true}, desc: "突破到 淬体~开源 用"},
     "中级突破丹":   {price: 5000,    effect: {breakthroughPill: true}, desc: "突破到 筑基~化神 用"},
     "高级突破丹":   {price: 50000,   effect: {breakthroughPill: true}, desc: "突破到 练虚~圣皇 用"},
@@ -87,7 +85,6 @@ function getBreakthroughPill(realmIndex) {
 }
 
 // ============ 炼丹配方 ============
-// 每种丹药需要多少灵草，成功率
 const ALCHEMY = {
     "初级修为丹": {herb: 3,  success: 0.9},
     "中级修为丹": {herb: 8,  success: 0.8},
@@ -331,7 +328,6 @@ function fight() {
     const q = player.power;
     const absQ = q >= 0 ? q : -q;
 
-    // 找到玩家当前打得过的怪中，最强的一只
     let strongest = null;
     for (const m of MONSTERS) {
         if (absQ >= m.reqPower) strongest = m;
@@ -343,7 +339,6 @@ function fight() {
         return;
     }
 
-    // 5% 概率遇到更强的怪（要求 = 当前 * 1.5）
     let monster = strongest;
     if (Math.random() < 0.05) {
         const nextIdx = MONSTERS.indexOf(strongest) + 1;
@@ -353,10 +348,8 @@ function fight() {
         }
     }
 
-    // 判定胜负
     const winChance = absQ / monster.reqPower;
     if (winChance >= 1) {
-        // 稳赢
         const stone = Math.floor(Math.random() * (monster.stone[1] - monster.stone[0] + 1)) + monster.stone[0];
         const herbGain = monster.herb > 0 ? Math.floor(Math.random() * (monster.herb + 1)) : 0;
         player.stone += stone;
@@ -369,7 +362,6 @@ function fight() {
             broadcastSys(`${playerName} 击败了【${monster.name}】！`);
         }
     } else {
-        // 打不过
         const lose = Math.floor(monster.reqPower * 0.1);
         player.power -= q >= 0 ? lose : -lose;
         player.mana = Math.max(0, player.mana - 30);
@@ -413,80 +405,68 @@ function adventure() {
     saveGame(true);
 }
 
-// ============ 突破（大境界要丹）============
-function breakthrough() {
-    const absQ = player.power >= 0 ? player.power : -player.power;
-    const rs = calcRealmStage(absQ);
-    if (rs.needForNext <= 0) {
-        log("❌ 已至当前境界巅峰，无法继续突破。", "red");
-        return;
-    }
-
-    // 判断：这次突破是否跨大境界？
-    // 小境界突破：当前 stageIndex 不是最后一个，且加上 needForNext 后 stageIndex 会变，但 realmIndex 不变
-    // 简单判断：needForNext 加上后，realmIndex 是否会 +1
-    const willRealmUp = (rs.stageIndex === STAGES.length - 1);
-
-    if (willRealmUp) {
-        // 需要突破丹
-        const pillName = getBreakthroughPill(rs.realmIndex + 1);
-        if (!player.items[pillName] || player.items[pillName] <= 0) {
-            log(`❌ 突破大境界需要【${pillName}】，你没有！去坊市买或炼丹炉炼。`, "red");
-            return;
-        }
-        player.items[pillName]--;
-        if (player.items[pillName] <= 0) delete player.items[pillName];
-        log(`✨ 消耗【${pillName}】！`, "gold");
-    }
-
-    // 修为推进
-    const gain = rs.needForNext;
-    player.power += player.power >= 0 ? gain : -gain;
-    log(`⚡ 强行突破，修为 +${gain}！`, "orange");
-    checkBreakthrough();
-    refreshUI();
-    saveGame(true);
-}
-
-// ============ 突破检测 ============
+// ============ 自动突破小境界 / 卡住大境界 ============
 let lastRealmKey = "";
+
 function checkBreakthrough() {
-    const q = player.power;
-    const absQ = q >= 0 ? q : -q;
-    const realmList = q >= 0 ? REALMS : EVIL_REALMS;
-    const rs = calcRealmStage(absQ);
-    const sign = q >= 0 ? "good" : "evil";
-    const key = `${sign}-${rs.realmIndex}-${rs.stageIndex}`;
+    // 循环：只要还能在小境界内升级，就一直升
+    let safety = 0;
+    while (safety++ < 500) {
+        const q = player.power;
+        const absQ = q >= 0 ? q : -q;
+        const rs = calcRealmStage(absQ);
+
+        if (rs.needForNext > 0) break; // 修为不够，停下
+
+        const isLastStage = rs.stageIndex === STAGES.length - 1;
+
+        if (!isLastStage) {
+            // 小境界，自动升
+            const gain = needForStage(rs.realmIndex, rs.stageIndex);
+            player.power += q >= 0 ? gain : -gain;
+            const newRS = calcRealmStage(Math.abs(player.power));
+            log(`💠 自动突破小境界，进入【${STAGES[newRS.stageIndex]}】。`, "cyan");
+            continue;
+        } else {
+            log(`⛔ 修为已满，需点击「大境界突破」按钮进入下一大境界。`, "orange");
+            break;
+        }
+    }
+
+    // 广播检测
+    const q2 = player.power;
+    const absQ2 = q2 >= 0 ? q2 : -q2;
+    const realmList2 = q2 >= 0 ? REALMS : EVIL_REALMS;
+    const rs2 = calcRealmStage(absQ2);
+    const sign = q2 >= 0 ? "good" : "evil";
+    const key = `${sign}-${rs2.realmIndex}-${rs2.stageIndex}`;
 
     if (key !== lastRealmKey) {
         const oldKey = lastRealmKey;
         lastRealmKey = key;
 
         if (oldKey) {
-            const [oldSign, oldR, oldS] = oldKey.split("-");
+            const [oldSign, oldR] = oldKey.split("-");
             const oldRi = parseInt(oldR);
-            const oldSi = parseInt(oldS);
 
             if (sign !== oldSign) {
                 if (sign === "good") {
-                    log(`✨ 你顿悟正道，重返 ${realmList[rs.realmIndex]}·${STAGES[rs.stageIndex]}！`, "gold");
-                    if (typeof broadcastSys === "function") broadcastSys(`${playerName} 顿悟正道，重返 ${realmList[rs.realmIndex]}！`);
+                    log(`✨ 你顿悟正道，重返 ${realmList2[rs2.realmIndex]}！`, "gold");
+                    if (typeof broadcastSys === "function") broadcastSys(`${playerName} 顿悟正道，重返 ${realmList2[rs2.realmIndex]}！`);
                 } else {
-                    log(`🌑 你堕入魔道，化身 ${realmList[rs.realmIndex]}·${STAGES[rs.stageIndex]}！`, "purple");
-                    if (typeof broadcastSys === "function") broadcastSys(`${playerName} 堕入魔道，化身 ${realmList[rs.realmIndex]}！`);
+                    log(`🌑 你堕入魔道，化身 ${realmList2[rs2.realmIndex]}！`, "purple");
+                    if (typeof broadcastSys === "function") broadcastSys(`${playerName} 堕入魔道，化身 ${realmList2[rs2.realmIndex]}！`);
                 }
-            } else if (rs.realmIndex > oldRi) {
-                log(`🔥🔥🔥 突破大境界！进入【${realmList[rs.realmIndex]}】！`, "gold");
-                if (typeof broadcastSys === "function") broadcastSys(`${playerName} 突破大境界，进入【${realmList[rs.realmIndex]}】！`);
+            } else if (rs2.realmIndex > oldRi) {
+                log(`🔥🔥🔥 突破大境界！进入【${realmList2[rs2.realmIndex]}】！`, "gold");
+                if (typeof broadcastSys === "function") broadcastSys(`${playerName} 突破大境界，进入【${realmList2[rs2.realmIndex]}】！`);
                 showFlash();
-            } else if (rs.stageIndex > oldSi) {
-                log(`💠 突破小境界，进入【${STAGES[rs.stageIndex]}】。`, "cyan");
             }
         }
 
-        player.realmIndex = rs.realmIndex;
-        player.stageIndex = rs.stageIndex;
-        player.maxMana = 100 + rs.realmIndex * 20;
+        player.realmIndex = rs2.realmIndex;
+        player.stageIndex = rs2.stageIndex;
+        player.maxMana = 100 + rs2.realmIndex * 20;
         player.mana = player.maxMana;
     }
 }
@@ -496,6 +476,45 @@ function showFlash() {
     flash.className = "breakthrough-flash";
     document.body.appendChild(flash);
     setTimeout(() => flash.remove(), 1000);
+}
+
+// ============ 突破按钮：只处理大境界 ============
+function breakthrough() {
+    const q = player.power;
+    const absQ = q >= 0 ? q : -q;
+    const realmList = q >= 0 ? REALMS : EVIL_REALMS;
+    const rs = calcRealmStage(absQ);
+
+    const isLastStage = rs.stageIndex === STAGES.length - 1;
+
+    if (!isLastStage || rs.needForNext > 0) {
+        log("❌ 小境界会自动突破，只有跨越大境界时才需要点击此按钮。", "orange");
+        return;
+    }
+
+    if (rs.realmIndex + 1 >= realmList.length) {
+        log("❌ 已至巅峰，无法继续突破。", "red");
+        return;
+    }
+
+    const pillName = getBreakthroughPill(rs.realmIndex + 1);
+    if (!player.items[pillName] || player.items[pillName] <= 0) {
+        log(`❌ 突破大境界需要【${pillName}】，你没有！去坊市买或炼丹炉炼。`, "red");
+        return;
+    }
+
+    player.items[pillName]--;
+    if (player.items[pillName] <= 0) delete player.items[pillName];
+    log(`✨ 消耗【${pillName}】！`, "gold");
+
+    const gain = rs.needForNext;
+    player.power += q >= 0 ? gain : -gain;
+
+    log(`⚡ 突破大境界！`, "orange");
+
+    checkBreakthrough();
+    refreshUI();
+    saveGame(true);
 }
 
 // ============ 法则 ============
@@ -524,7 +543,7 @@ function getElementLevelName(level) {
     return ["一窍不通","初窥门径","小有所成","登堂入室","炉火纯青","登峰造极"][level] || "未知";
 }
 
-// ============ 坊市（灵石消费）============
+// ============ 坊市 ============
 function shop() {
     const items = Object.entries(PILLS);
     log("🏪 坊市（使用灵石购买）：", "gold");
@@ -654,7 +673,6 @@ function showStatus() {
         log(`  ${e}：${d.exp} 经验 | ${getElementLevelName(d.level)}`, "gray");
     }
 
-    // 显示下一个突破丹需求
     const nextPill = getBreakthroughPill(rs.realmIndex + 1);
     log(`🧪 下一个大境界突破丹：${nextPill}`, "orange");
     log(`━━━━━━━━━━━━━━━━━━━━`, "gold");
@@ -706,7 +724,7 @@ function handleLocalCommand(cmd) {
     if (cmd.startsWith("炼 ")) { craftPill(cmd.substring(2).trim()); return; }
     if (cmd === "存档" || cmd === "save") { saveGame(); return; }
     if (cmd === "帮助" || cmd === "help") {
-        log("📖 按钮：修炼 / 打怪 / 历练 / 突破 / 法则 / 坊市 / 炼丹炉 / 详情 / 存档 / 重置", "cyan");
+        log("📖 按钮：修炼 / 打怪 / 历练 / 大境界突破 / 法则 / 坊市 / 炼丹炉 / 详情 / 存档 / 重置", "cyan");
         log("💬 指令：买 丹药名 / 用 丹药名 / 炼 丹药名 / 改名 新名字", "cyan");
         log("💬 其他输入会作为聊天消息发给所有在线玩家", "cyan");
         return;
