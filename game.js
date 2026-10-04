@@ -148,6 +148,16 @@ function calcRealmStage(q) {
     return {realmIndex: realmList.length - 1, stageIndex: STAGES.length - 1, needForNext: 0};
 }
 
+function getTotalNeeded(r, s) {
+    let t = 0;
+    for (let i = 0; i < r; i++)
+        for (let j = 0; j < STAGES.length; j++)
+            t += needForStage(i, j);
+    for (let j = 0; j < s; j++)
+        t += needForStage(r, j);
+    return t;
+}
+
 function getPhysiqueData(name) { return PHYSIQUES.find(p => p.name === name); }
 
 function generateRandomElements() {
@@ -409,19 +419,17 @@ function adventure() {
 let lastRealmKey = "";
 
 function checkBreakthrough() {
-    // 循环：只要还能在小境界内升级，就一直升
     let safety = 0;
     while (safety++ < 500) {
         const q = player.power;
         const absQ = q >= 0 ? q : -q;
         const rs = calcRealmStage(absQ);
 
-        if (rs.needForNext > 0) break; // 修为不够，停下
+        if (rs.needForNext > 0) break;
 
         const isLastStage = rs.stageIndex === STAGES.length - 1;
 
         if (!isLastStage) {
-            // 小境界，自动升
             const gain = needForStage(rs.realmIndex, rs.stageIndex);
             player.power += q >= 0 ? gain : -gain;
             const newRS = calcRealmStage(Math.abs(player.power));
@@ -433,7 +441,6 @@ function checkBreakthrough() {
         }
     }
 
-    // 广播检测
     const q2 = player.power;
     const absQ2 = q2 >= 0 ? q2 : -q2;
     const realmList2 = q2 >= 0 ? REALMS : EVIL_REALMS;
@@ -478,36 +485,46 @@ function showFlash() {
     setTimeout(() => flash.remove(), 1000);
 }
 
-// ============ 突破按钮：只处理大境界 ============
+// ============ 突破按钮：只处理大境界（严格版）============
 function breakthrough() {
     const q = player.power;
     const absQ = q >= 0 ? q : -q;
     const realmList = q >= 0 ? REALMS : EVIL_REALMS;
-    const rs = calcRealmStage(absQ);
 
-    const isLastStage = rs.stageIndex === STAGES.length - 1;
+    // 判断当前：修为 +1 后，大境界会不会变
+    const rsNow = calcRealmStage(absQ);
+    const rsPlus = calcRealmStage(absQ + 1);
 
-    if (!isLastStage || rs.needForNext > 0) {
+    // 如果加 1 点修为后大境界没变 → 说明玩家还没到「卡大境界」的状态
+    if (rsPlus.realmIndex === rsNow.realmIndex) {
         log("❌ 小境界会自动突破，只有跨越大境界时才需要点击此按钮。", "orange");
         return;
     }
 
-    if (rs.realmIndex + 1 >= realmList.length) {
+    // 双重保险：当前必须已经在最后一个阶段，且修为已经满了
+    if (rsNow.stageIndex !== STAGES.length - 1 || rsNow.needForNext > 0) {
+        log("❌ 修为未满或未到大境界门口，无法突破。", "orange");
+        return;
+    }
+
+    if (rsNow.realmIndex + 1 >= realmList.length) {
         log("❌ 已至巅峰，无法继续突破。", "red");
         return;
     }
 
-    const pillName = getBreakthroughPill(rs.realmIndex + 1);
+    const pillName = getBreakthroughPill(rsNow.realmIndex + 1);
     if (!player.items[pillName] || player.items[pillName] <= 0) {
         log(`❌ 突破大境界需要【${pillName}】，你没有！去坊市买或炼丹炉炼。`, "red");
         return;
     }
 
+    // 扣丹
     player.items[pillName]--;
     if (player.items[pillName] <= 0) delete player.items[pillName];
     log(`✨ 消耗【${pillName}】！`, "gold");
 
-    const gain = rs.needForNext;
+    // 修为推进到下一大境界起点
+    const gain = rsNow.needForNext;
     player.power += q >= 0 ? gain : -gain;
 
     log(`⚡ 突破大境界！`, "orange");
@@ -700,22 +717,10 @@ function handleChat(cmd) {
 
 // ============ 本地指令 ============
 function handleLocalCommand(cmd) {
-    if (cmd === "修为划分") {
-        log("✨ 正道：" + REALMS.join(" → "), "gold");
-        return;
-    }
-    if (cmd === "体质划分") {
-        PHYSIQUES.forEach(p => log(`${p.name} | 修炼 +${p.cultivateBonus} | 丹药 +${p.pillBonus} | 稀有度 ${p.rarity}`, "cyan"));
-        return;
-    }
-    if (cmd === "灵根划分") {
-        ROOTS.forEach((r, i) => log(`${i}. ${r} | 修炼加成 ×${ROOT_MULT[i]}`, "orange"));
-        return;
-    }
-    if (cmd === "元素划分") {
-        ELEMENTS.forEach(e => log(`元素：${e}`, "purple"));
-        return;
-    }
+    if (cmd === "修为划分") { log("✨ 正道：" + REALMS.join(" → "), "gold"); return; }
+    if (cmd === "体质划分") { PHYSIQUES.forEach(p => log(`${p.name} | 修炼 +${p.cultivateBonus} | 丹药 +${p.pillBonus} | 稀有度 ${p.rarity}`, "cyan")); return; }
+    if (cmd === "灵根划分") { ROOTS.forEach((r, i) => log(`${i}. ${r} | 修炼加成 ×${ROOT_MULT[i]}`, "orange")); return; }
+    if (cmd === "元素划分") { ELEMENTS.forEach(e => log(`元素：${e}`, "purple")); return; }
     if (cmd === "查看详情" || cmd === "状态") { showStatus(); return; }
     if (cmd === "坊市") { shop(); return; }
     if (cmd === "炼丹炉") { alchemy(); return; }
