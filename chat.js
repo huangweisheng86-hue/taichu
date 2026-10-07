@@ -27,19 +27,22 @@ const chatRef = db.ref("chat");
 chatRef.limitToLast(50).on("child_added", snapshot => {
     const msg = snapshot.val();
     if (!msg) return;
+    if (msg.to && msg.to !== playerName && msg.name !== playerName) return;
     const time = new Date(msg.time).toLocaleTimeString("zh-CN", {hour: "2-digit", minute: "2-digit"});
     const prefix = msg.isSys ? "" : `[${time}] `;
-    const text = `${prefix}${msg.name}：${msg.text}`;
+    const tag = msg.to ? `【私聊】` : "";
+    const text = `${prefix}${tag}${msg.name}：${msg.text}`;
     if (typeof chatLog === "function") {
         chatLog(text, msg.isSys ? "sys" : (msg.name === playerName ? "me" : "broadcast"));
     }
 });
 
-function sendChat(text) {
+function sendChat(text, to) {
     if (!text || !text.trim()) return;
     chatRef.push({
         name: playerName,
         text: text.trim(),
+        to: to || null,
         time: Date.now()
     });
 }
@@ -53,10 +56,37 @@ function broadcastSys(text) {
     });
 }
 
-// ============ 在线人数 ============
+// ============ 在线人数 + 修为同步 ============
 const onlineRef = db.ref("online/" + playerId);
+const playersRef = db.ref("players/" + playerId);
+
+function syncPlayer() {
+    if (typeof player === "undefined" || !player) return;
+    const q = player.power;
+    const absQ = q >= 0 ? q : -q;
+    let realmName = "凡人";
+    let stageName = "前期一层";
+    try {
+        if (typeof calcRealmStage === "function" && typeof REALMS !== "undefined") {
+            const rs = calcRealmStage(absQ);
+            realmName = (q >= 0 ? REALMS : EVIL_REALMS)[rs.realmIndex] || "未知";
+            stageName = STAGES[rs.stageIndex] || "";
+        }
+    } catch (e) {}
+    playersRef.set({
+        name: playerName,
+        power: player.power,
+        realm: realmName,
+        stage: stageName,
+        time: Date.now()
+    });
+}
+
 onlineRef.set({name: playerName, time: firebase.database.ServerValue.TIMESTAMP});
 onlineRef.onDisconnect().remove();
+playersRef.onDisconnect().remove();
+
+setInterval(syncPlayer, 5000);
 
 db.ref("online").on("value", snapshot => {
     const data = snapshot.val() || {};
@@ -79,5 +109,59 @@ function changeName(newName) {
     playerName = newName;
     localStorage.setItem("xiuxian_player_name", newName);
     onlineRef.update({name: newName});
+    playersRef.update({name: newName});
     if (typeof chatLog === "function") chatLog(`✅ 改名为「${newName}」`, "sys");
+}
+
+// ============ 封神榜 ============
+function fetchRanking() {
+    return new Promise(resolve => {
+        db.ref("players").once("value", snap => {
+            const data = snap.val() || {};
+            const list = Object.values(data);
+            list.sort((a, b) => Math.abs(b.power) - Math.abs(a.power));
+            resolve(list);
+        });
+    });
+}
+
+// ============ 世界BOSS ============
+const bossRef = db.ref("boss");
+
+function ensureBoss(callback) {
+    bossRef.once("value", snap => {
+        let boss = snap.val();
+        if (!boss || boss.hp <= 0 || Date.now() - boss.time > 1000 * 60 * 60) {
+            boss = {
+                name: "上古魔王·烛九阴",
+                hp: 10000000,
+                maxHp: 10000000,
+                time: Date.now(),
+                damage: {}
+            };
+            bossRef.set(boss);
+        }
+        callback(boss);
+    });
+}
+
+function attackBoss(damage) {
+    return new Promise(resolve => {
+        bossRef.transaction(boss => {
+            if (!boss || boss.hp <= 0) return boss;
+            boss.hp = Math.max(0, boss.hp - damage);
+            boss.damage = boss.damage || {};
+            boss.damage[playerName] = (boss.damage[playerName] || 0) + damage;
+            if (boss.hp === 0) {
+                boss.killedBy = playerName;
+            }
+            return boss;
+        }, () => {
+            bossRef.once("value", snap => resolve(snap.val()));
+        });
+    });
+}
+
+function listenBoss(callback) {
+    bossRef.on("value", snap => callback(snap.val()));
 }
