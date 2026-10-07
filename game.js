@@ -40,7 +40,6 @@ const PHYSIQUES = [
     {name:"诸天湮灭体", cultivateBonus:420, pillBonus:2000, rarity:6}
 ];
 
-// ============ 怪物表 ============
 const MONSTERS = [
     {name:"野兔",   reqPower: 0,    stone:[5, 15],   herb: 0},
     {name:"灰狼",   reqPower: 50,   stone:[15, 40],  herb: 1},
@@ -56,7 +55,6 @@ const MONSTERS = [
     {name:"太古魔龙", reqPower: 3000000, stone:[150000, 500000], herb: 15}
 ];
 
-// ============ 丹药表 ============
 const PILLS = {
     "初级修为丹":   {price: 100,     effect: {power: 100},       desc: "+100 修为"},
     "中级修为丹":   {price: 1000,    effect: {power: 1000},      desc: "+1000 修为"},
@@ -73,7 +71,6 @@ const PILLS = {
     "神级突破丹":   {price: 50000000, effect: {breakthroughPill: true}, desc: "突破到 天帝~太初之主 用"}
 };
 
-// ============ 突破丹对应境界 ============
 function getBreakthroughPill(realmIndex) {
     if (realmIndex <= 4) return "初级突破丹";
     if (realmIndex <= 8) return "中级突破丹";
@@ -84,7 +81,6 @@ function getBreakthroughPill(realmIndex) {
     return "神级突破丹";
 }
 
-// ============ 炼丹配方 ============
 const ALCHEMY = {
     "初级修为丹": {herb: 3,  success: 0.9},
     "中级修为丹": {herb: 8,  success: 0.8},
@@ -100,6 +96,20 @@ const ALCHEMY = {
     "仙级突破丹": {herb: 600, success: 0.4},
     "神级突破丹": {herb: 1500, success: 0.3}
 };
+
+const ACHIEVEMENTS = [
+    {id: "first_cultivate", name: "初入修行", desc: "第一次打坐修炼"},
+    {id: "first_fight",     name: "初战告捷", desc: "第一次击败怪物"},
+    {id: "first_break",     name: "破茧成蝶", desc: "第一次突破大境界"},
+    {id: "realm_5",         name: "金丹大道", desc: "达到 结丹期"},
+    {id: "realm_10",        name: "元婴化神", desc: "达到 练虚期"},
+    {id: "realm_20",        name: "天仙之资", desc: "达到 天仙"},
+    {id: "stone_10000",     name: "富甲一方", desc: "灵石累计超过 1 万"},
+    {id: "stone_1000000",   name: "富可敌国", desc: "灵石累计超过 100 万"},
+    {id: "herb_100",        name: "灵草大师", desc: "灵草累计超过 100"},
+    {id: "boss_hit",        name: "屠魔勇士", desc: "对世界BOSS造成伤害"},
+    {id: "signin_7",        name: "七日苦修", desc: "累计签到 7 天"}
+];
 
 let player = null;
 
@@ -119,8 +129,7 @@ function defaultPlayer() {
     return {
         power: 0, realmIndex: 0, stageIndex: 0,
         mana: 100, maxMana: 100,
-        stone: 0,
-        herb: 0,
+        stone: 0, herb: 0,
         lawPower: 50,
         root: root,
         elements: generateRandomElements(),
@@ -128,7 +137,12 @@ function defaultPlayer() {
         lawElements: lawElements,
         items: {},
         age: 16, life: 80,
-        lastCultivate: 0
+        lastCultivate: 0,
+        lastSignin: 0,
+        signinCount: 0,
+        lastOnlineReward: Date.now(),
+        achievements: {},
+        bossDamageToday: 0
     };
 }
 
@@ -198,7 +212,7 @@ function generateRandomPhysique() {
 }
 
 // ============ 存档 ============
-const SAVE_KEY = "taichu_xiuxian_save_v2";
+const SAVE_KEY = "taichu_xiuxian_save_v3";
 
 function saveGame(silent) {
     try {
@@ -222,6 +236,11 @@ function loadGame() {
         if (p.lastCultivate === undefined) p.lastCultivate = 0;
         if (p.stone === undefined) p.stone = 0;
         if (p.herb === undefined) p.herb = 0;
+        if (p.lastSignin === undefined) p.lastSignin = 0;
+        if (p.signinCount === undefined) p.signinCount = 0;
+        if (p.lastOnlineReward === undefined) p.lastOnlineReward = Date.now();
+        if (!p.achievements) p.achievements = {};
+        if (p.bossDamageToday === undefined) p.bossDamageToday = 0;
         return p;
     } catch (e) { return null; }
 }
@@ -246,6 +265,20 @@ function chatLog(text, cls = "sys") {
     el.appendChild(line);
     el.scrollTop = el.scrollHeight;
     while (el.children.length > 80) el.removeChild(el.firstChild);
+}
+
+// ============ 成就 ============
+function unlockAchievement(id) {
+    if (!player.achievements[id]) {
+        player.achievements[id] = Date.now();
+        const ach = ACHIEVEMENTS.find(a => a.id === id);
+        if (ach) {
+            log(`🏆 成就解锁：【${ach.name}】- ${ach.desc}`, "gold");
+            if (typeof broadcastSys === "function") {
+                broadcastSys(`${playerName} 解锁成就【${ach.name}】！`);
+            }
+        }
+    }
 }
 
 // ============ 刷新界面 ============
@@ -328,6 +361,7 @@ function cultivate(isMo) {
     }
 
     player.mana = Math.min(player.maxMana, player.mana + 5);
+    unlockAchievement("first_cultivate");
     checkBreakthrough();
     refreshUI();
     saveGame(true);
@@ -368,6 +402,10 @@ function fight() {
         player.power += q >= 0 ? powerGain : -powerGain;
         log(`⚔️ 你击败了【${monster.name}】！`, "lime");
         log(`  获得灵石 +${stone}，灵草 +${herbGain}，修为 +${powerGain}`, "cyan");
+        unlockAchievement("first_fight");
+        if (player.stone >= 10000) unlockAchievement("stone_10000");
+        if (player.stone >= 1000000) unlockAchievement("stone_1000000");
+        if (player.herb >= 100) unlockAchievement("herb_100");
         if (typeof broadcastSys === "function" && Math.random() < 0.1) {
             broadcastSys(`${playerName} 击败了【${monster.name}】！`);
         }
@@ -410,12 +448,15 @@ function adventure() {
         player.mana = player.maxMana;
         log(`⭐ 天降奇缘！修为 +1000，灵石 +500，灵草 +${herb}，法则 +10！`, "gold");
     }
+    if (player.stone >= 10000) unlockAchievement("stone_10000");
+    if (player.stone >= 1000000) unlockAchievement("stone_1000000");
+    if (player.herb >= 100) unlockAchievement("herb_100");
     checkBreakthrough();
     refreshUI();
     saveGame(true);
 }
 
-// ============ 自动突破小境界 / 卡住大境界 ============
+// ============ 自动突破小境界 / 卡大境界 ============
 let lastRealmKey = "";
 
 function checkBreakthrough() {
@@ -424,11 +465,8 @@ function checkBreakthrough() {
         const q = player.power;
         const absQ = q >= 0 ? q : -q;
         const rs = calcRealmStage(absQ);
-
         if (rs.needForNext > 0) break;
-
         const isLastStage = rs.stageIndex === STAGES.length - 1;
-
         if (!isLastStage) {
             const gain = needForStage(rs.realmIndex, rs.stageIndex);
             player.power += q >= 0 ? gain : -gain;
@@ -466,6 +504,10 @@ function checkBreakthrough() {
                 }
             } else if (rs2.realmIndex > oldRi) {
                 log(`🔥🔥🔥 突破大境界！进入【${realmList2[rs2.realmIndex]}】！`, "gold");
+                unlockAchievement("first_break");
+                if (rs2.realmIndex >= 6) unlockAchievement("realm_5");
+                if (rs2.realmIndex >= 10) unlockAchievement("realm_10");
+                if (rs2.realmIndex >= 20) unlockAchievement("realm_20");
                 if (typeof broadcastSys === "function") broadcastSys(`${playerName} 突破大境界，进入【${realmList2[rs2.realmIndex]}】！`);
                 showFlash();
             }
@@ -485,23 +527,20 @@ function showFlash() {
     setTimeout(() => flash.remove(), 1000);
 }
 
-// ============ 突破按钮：只处理大境界（严格版）============
+// ============ 大境界突破 ============
 function breakthrough() {
     const q = player.power;
     const absQ = q >= 0 ? q : -q;
     const realmList = q >= 0 ? REALMS : EVIL_REALMS;
 
-    // 判断当前：修为 +1 后，大境界会不会变
     const rsNow = calcRealmStage(absQ);
     const rsPlus = calcRealmStage(absQ + 1);
 
-    // 如果加 1 点修为后大境界没变 → 说明玩家还没到「卡大境界」的状态
     if (rsPlus.realmIndex === rsNow.realmIndex) {
         log("❌ 小境界会自动突破，只有跨越大境界时才需要点击此按钮。", "orange");
         return;
     }
 
-    // 双重保险：当前必须已经在最后一个阶段，且修为已经满了
     if (rsNow.stageIndex !== STAGES.length - 1 || rsNow.needForNext > 0) {
         log("❌ 修为未满或未到大境界门口，无法突破。", "orange");
         return;
@@ -518,12 +557,10 @@ function breakthrough() {
         return;
     }
 
-    // 扣丹
     player.items[pillName]--;
     if (player.items[pillName] <= 0) delete player.items[pillName];
     log(`✨ 消耗【${pillName}】！`, "gold");
 
-    // 修为推进到下一大境界起点
     const gain = rsNow.needForNext;
     player.power += q >= 0 ? gain : -gain;
 
@@ -660,6 +697,125 @@ function craftPill(name) {
     saveGame(true);
 }
 
+// ============ 签到 ============
+function signin() {
+    const now = Date.now();
+    const oneDay = 1000 * 60 * 60 * 24;
+    if (now - player.lastSignin < oneDay) {
+        const remain = oneDay - (now - player.lastSignin);
+        const h = Math.floor(remain / 3600000);
+        const m = Math.floor((remain % 3600000) / 60000);
+        log(`⏰ 今日已签到，还需 ${h} 小时 ${m} 分钟后才能再次签到。`, "orange");
+        return;
+    }
+    player.lastSignin = now;
+    player.signinCount = (player.signinCount || 0) + 1;
+    const stone = 1000 + player.realmIndex * 500;
+    const herb = 5 + player.realmIndex;
+    player.stone += stone;
+    player.herb += herb;
+    player.lawPower += 5;
+    log(`🎁 签到成功！第 ${player.signinCount} 天，灵石 +${stone}，灵草 +${herb}，法则 +5`, "gold");
+    if (player.signinCount >= 7) unlockAchievement("signin_7");
+    if (typeof broadcastSys === "function") broadcastSys(`${playerName} 完成了第 ${player.signinCount} 天签到！`);
+    refreshUI();
+    saveGame(true);
+}
+
+// ============ 在线奖励 ============
+function checkOnlineReward() {
+    const now = Date.now();
+    if (now - player.lastOnlineReward >= 1000 * 60 * 5) {
+        player.lastOnlineReward = now;
+        const stone = 200 + player.realmIndex * 100;
+        const herb = 1 + Math.floor(player.realmIndex / 3);
+        player.stone += stone;
+        player.herb += herb;
+        log(`⏳ 在线奖励！灵石 +${stone}，灵草 +${herb}`, "cyan");
+        refreshUI();
+        saveGame(true);
+    }
+}
+setInterval(checkOnlineReward, 30000);
+
+// ============ 封神榜 ============
+async function showRanking() {
+    log("🏆 封神榜（正在查询...）", "gold");
+    try {
+        const list = await fetchRanking();
+        if (!list || list.length === 0) {
+            log("暂无玩家数据", "gray");
+            return;
+        }
+        log("━━━━━━━━ 🏆 封神榜 · 全服修为排行 ━━━━━━━━", "gold");
+        list.slice(0, 10).forEach((p, i) => {
+            const medal = ["🥇","🥈","🥉"][i] || `${i+1}.`;
+            log(`${medal} ${p.name} — ${p.realm}·${p.stage}（修为 ${p.power.toLocaleString()}）`, i < 3 ? "gold" : "cyan");
+        });
+        log("━━━━━━━━━━━━━━━━━━━━", "gold");
+    } catch (e) {
+        log("❌ 封神榜查询失败：" + e.message, "red");
+    }
+}
+
+// ============ 成就列表 ============
+function showAchievements() {
+    log("📜 成就列表：", "gold");
+    ACHIEVEMENTS.forEach(a => {
+        const unlocked = player.achievements[a.id];
+        log(`  ${unlocked ? "✅" : "⬜"} 【${a.name}】${a.desc}`, unlocked ? "lime" : "gray");
+    });
+}
+
+// ============ 世界BOSS ============
+async function showBoss() {
+    log("👹 正在查询世界BOSS状态...", "orange");
+    try {
+        ensureBoss(boss => {
+            if (boss.hp <= 0) {
+                log("🎉 上一只BOSS已被击败！等待下一次刷新。", "gold");
+                return;
+            }
+            const pct = ((boss.hp / boss.maxHp) * 100).toFixed(1);
+            log(`━━━━━━━━ 👹 ${boss.name} ━━━━━━━━`, "red");
+            log(`血量：${boss.hp.toLocaleString()} / ${boss.maxHp.toLocaleString()}（${pct}%）`, "orange");
+            const myDmg = (boss.damage && boss.damage[playerName]) || 0;
+            log(`你的伤害：${myDmg.toLocaleString()}`, "cyan");
+            log("💡 输入「打boss」攻击 BOSS", "gold");
+            log("━━━━━━━━━━━━━━━━━━━━", "red");
+        });
+    } catch (e) {
+        log("❌ 查询失败：" + e.message, "red");
+    }
+}
+
+async function hitBoss() {
+    const q = player.power;
+    const absQ = q >= 0 ? q : -q;
+    const dmg = Math.max(1, Math.floor(absQ * 1 + Math.random() * absQ * 0.5 + 10));
+
+    try {
+        const boss = await attackBoss(dmg);
+        unlockAchievement("boss_hit");
+        if (boss && boss.hp <= 0) {
+            log(`🎉 你造成了 ${dmg.toLocaleString()} 点伤害，BOSS 已被击败！`, "gold");
+            const rewardStone = 10000 + player.realmIndex * 5000;
+            const rewardHerb = 20 + player.realmIndex * 2;
+            player.stone += rewardStone;
+            player.herb += rewardHerb;
+            log(`🎁 击杀奖励：灵石 +${rewardStone}，灵草 +${rewardHerb}`, "lime");
+            if (typeof broadcastSys === "function") broadcastSys(`世界BOSS 被 ${playerName} 击杀！`);
+        } else if (boss) {
+            const pct = ((boss.hp / boss.maxHp) * 100).toFixed(1);
+            log(`⚔️ 你对BOSS造成 ${dmg.toLocaleString()} 点伤害！剩余血量：${boss.hp.toLocaleString()}（${pct}%）`, "orange");
+        }
+        refreshUI();
+        saveGame(true);
+    } catch (e) {
+        log("❌ 攻击失败：" + e.message, "red");
+    }
+}
+
 // ============ 查看详情 ============
 function showStatus() {
     const q = player.power;
@@ -692,12 +848,29 @@ function showStatus() {
 
     const nextPill = getBreakthroughPill(rs.realmIndex + 1);
     log(`🧪 下一个大境界突破丹：${nextPill}`, "orange");
+
+    const remainToPeak = needForStage(rs.realmIndex, rs.stageIndex) - (absQ - getTotalNeeded(rs.realmIndex, rs.stageIndex));
+    log(`📊 距离本境界巅峰还需：${remainToPeak.toLocaleString()} 修为`, "cyan");
     log(`━━━━━━━━━━━━━━━━━━━━`, "gold");
 }
 
-// ============ 聊天指令分流 ============
+// ============ 聊天分流 ============
 function handleChat(cmd) {
     if (!cmd) return;
+
+    if (cmd.startsWith("/w ") || cmd.startsWith("私聊 ")) {
+        const rest = cmd.startsWith("/w ") ? cmd.substring(3) : cmd.substring(3);
+        const firstSpace = rest.indexOf(" ");
+        if (firstSpace === -1) {
+            log("❌ 格式：/w 玩家名 消息", "orange");
+            return;
+        }
+        const to = rest.substring(0, firstSpace).trim();
+        const text = rest.substring(firstSpace + 1).trim();
+        if (typeof sendChat === "function") sendChat(text, to);
+        if (typeof chatLog === "function") chatLog(`【私聊 → ${to}】${text}`, "me");
+        return;
+    }
 
     if (cmd.startsWith("改名 ")) {
         if (typeof changeName === "function") changeName(cmd.substring(3).trim());
@@ -707,7 +880,8 @@ function handleChat(cmd) {
     if (cmd === "修为划分" || cmd === "体质划分" || cmd === "灵根划分" || cmd === "元素划分"
         || cmd === "查看详情" || cmd === "状态" || cmd === "坊市" || cmd === "帮助"
         || cmd.startsWith("买 ") || cmd.startsWith("用 ") || cmd.startsWith("炼 ")
-        || cmd === "炼丹炉" || cmd === "存档" || cmd === "save" || cmd === "help") {
+        || cmd === "炼丹炉" || cmd === "存档" || cmd === "save" || cmd === "help"
+        || cmd === "打boss" || cmd === "封神榜" || cmd === "排行榜" || cmd === "签到" || cmd === "成就") {
         handleLocalCommand(cmd);
         return;
     }
@@ -728,10 +902,17 @@ function handleLocalCommand(cmd) {
     if (cmd.startsWith("用 ")) { usePill(cmd.substring(2).trim()); return; }
     if (cmd.startsWith("炼 ")) { craftPill(cmd.substring(2).trim()); return; }
     if (cmd === "存档" || cmd === "save") { saveGame(); return; }
+    if (cmd === "打boss") { hitBoss(); return; }
+    if (cmd === "封神榜" || cmd === "排行榜") { showRanking(); return; }
+    if (cmd === "签到") { signin(); return; }
+    if (cmd === "成就") { showAchievements(); return; }
     if (cmd === "帮助" || cmd === "help") {
-        log("📖 按钮：修炼 / 打怪 / 历练 / 大境界突破 / 法则 / 坊市 / 炼丹炉 / 详情 / 存档 / 重置", "cyan");
-        log("💬 指令：买 丹药名 / 用 丹药名 / 炼 丹药名 / 改名 新名字", "cyan");
-        log("💬 其他输入会作为聊天消息发给所有在线玩家", "cyan");
+        log("📖 按钮：修炼/打怪/历练/大境界突破/法则/坊市/炼丹炉/签到/封神榜/BOSS/成就", "cyan");
+        log("💬 指令：", "cyan");
+        log("  买 丹药名 / 用 丹药名 / 炼 丹药名", "gray");
+        log("  改名 新名字 / 封神榜 / 打boss / 签到 / 成就", "gray");
+        log("  /w 玩家名 消息（私聊）", "gray");
+        log("  其他输入 = 全服聊天", "gray");
         return;
     }
 }
@@ -749,6 +930,10 @@ document.getElementById("actions").addEventListener("click", e => {
     else if (action === "use-law") useLawPower();
     else if (action === "shop") shop();
     else if (action === "alchemy") alchemy();
+    else if (action === "signin") signin();
+    else if (action === "ranking") showRanking();
+    else if (action === "boss") showBoss();
+    else if (action === "achievement") showAchievements();
     else if (action === "status") showStatus();
     else if (action === "save") saveGame();
     else if (action === "reset") {
@@ -786,10 +971,15 @@ function start() {
     chatLog("✨ 太初烬寰修仙系统已启动 ✨", "sys");
     chatLog("💡 输入「帮助」查看所有指令", "sys");
     refreshUI();
+    if (typeof listenBoss === "function") {
+        listenBoss(boss => {
+            if (boss && boss.hp > 0) window._boss = boss;
+        });
+    }
 }
 
 if (typeof firebase !== "undefined") {
-    setTimeout(start, 200);
+    setTimeout(start, 300);
 } else {
     start();
 }
