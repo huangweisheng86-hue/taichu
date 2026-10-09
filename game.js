@@ -136,7 +136,6 @@ const TITLES = [
 
 // ============ 段 2 ============
 // （继续在同一个文件里往下粘贴）let player = null;
-
 function defaultPlayer() {
     const r = Math.random();
     let root;
