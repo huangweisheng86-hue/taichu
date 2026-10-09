@@ -5,17 +5,19 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>太初烬寰 · 修仙模拟器</title>
+    <title>太初烬寰 6.0 · 修仙模拟器</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="app">
         <header>
-            <h1>✨ 太初烬寰 ✨</h1>
+            <h1>✨ 太初烬寰 6.0 ✨</h1>
             <div id="realm-bar">
                 <span id="realm-name">凡人</span>
                 <span id="realm-stage">前期一层</span>
+                <span id="title-display"></span>
             </div>
+            <div id="sect-display"></div>
         </header>
 
         <div id="stats">
@@ -34,7 +36,14 @@
             <div id="progress-text">0 / 10</div>
         </div>
 
-        <div id="actions">
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="basic">基础</button>
+            <button class="tab-btn" data-tab="social">社交</button>
+            <button class="tab-btn" data-tab="explore">探索</button>
+            <button class="tab-btn" data-tab="market">交易</button>
+        </div>
+
+        <div id="actions-basic" class="actions-group active">
             <button data-action="cultivate">☯ 打坐修炼</button>
             <button data-action="cultivate-mo">🌑 魔道修炼</button>
             <button data-action="fight">⚔️ 打怪</button>
@@ -44,12 +53,32 @@
             <button data-action="shop">🏪 坊市</button>
             <button data-action="alchemy">⚗️ 炼丹炉</button>
             <button data-action="signin">🎁 每日签到</button>
-            <button data-action="ranking">🏆 封神榜</button>
-            <button data-action="boss">👹 世界BOSS</button>
-            <button data-action="achievement">📜 成就</button>
             <button data-action="status">📖 查看详情</button>
             <button data-action="save">💾 手动存档</button>
             <button data-action="reset">🔄 重新开始</button>
+        </div>
+
+        <div id="actions-social" class="actions-group">
+            <button data-action="sect">🏛️ 门派</button>
+            <button data-action="master">🎓 拜师/收徒</button>
+            <button data-action="partner">💍 道侣</button>
+            <button data-action="duel">⚔️ 切磋</button>
+            <button data-action="ranking">🏆 封神榜</button>
+            <button data-action="achievement">📜 成就</button>
+            <button data-action="title">🏅 称号</button>
+        </div>
+
+        <div id="actions-explore" class="actions-group">
+            <button data-action="map">🌍 地图</button>
+            <button data-action="boss">👹 世界BOSS</button>
+            <button data-action="leyline">⚡ 灵脉争夺</button>
+            <button data-action="daily">📅 每日任务</button>
+            <button data-action="lottery">🎰 抽奖</button>
+        </div>
+
+        <div id="actions-market" class="actions-group">
+            <button data-action="market">🏦 交易行</button>
+            <button data-action="my-market">📦 我的挂单</button>
         </div>
 
         <div id="log"></div>
