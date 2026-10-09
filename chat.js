@@ -56,7 +56,7 @@ function broadcastSys(text) {
     });
 }
 
-// ============ 在线人数 + 修为同步 ============
+// ============ 在线 + 同步 ============
 const onlineRef = db.ref("online/" + playerId);
 const playersRef = db.ref("players/" + playerId);
 
@@ -64,8 +64,7 @@ function syncPlayer() {
     if (typeof player === "undefined" || !player) return;
     const q = player.power;
     const absQ = q >= 0 ? q : -q;
-    let realmName = "凡人";
-    let stageName = "前期一层";
+    let realmName = "凡人", stageName = "前期一层";
     try {
         if (typeof calcRealmStage === "function" && typeof REALMS !== "undefined") {
             const rs = calcRealmStage(absQ);
@@ -78,6 +77,11 @@ function syncPlayer() {
         power: player.power,
         realm: realmName,
         stage: stageName,
+        sect: player.sect || null,
+        master: player.master || null,
+        disciple: player.disciple || null,
+        partner: player.partner || null,
+        title: player.title || null,
         time: Date.now()
     });
 }
@@ -93,7 +97,7 @@ db.ref("online").on("value", snapshot => {
     const count = Object.keys(data).length;
     const names = Object.values(data).map(d => d.name).join("、");
     const header = document.querySelector("header h1");
-    if (header) header.textContent = `✨ 太初烬寰 ✨ [在线 ${count}]`;
+    if (header) header.textContent = `✨ 太初烬寰 6.0 ✨ [在线 ${count}]`;
     if (typeof chatLog === "function" && window._lastOnlineCount !== count) {
         window._lastOnlineCount = count;
         chatLog(`👥 当前在线（${count}）：${names || "无"}`, "sys");
@@ -152,9 +156,7 @@ function attackBoss(damage) {
             boss.hp = Math.max(0, boss.hp - damage);
             boss.damage = boss.damage || {};
             boss.damage[playerName] = (boss.damage[playerName] || 0) + damage;
-            if (boss.hp === 0) {
-                boss.killedBy = playerName;
-            }
+            if (boss.hp === 0) boss.killedBy = playerName;
             return boss;
         }, () => {
             bossRef.once("value", snap => resolve(snap.val()));
@@ -165,3 +167,112 @@ function attackBoss(damage) {
 function listenBoss(callback) {
     bossRef.on("value", snap => callback(snap.val()));
 }
+
+// ============ 门派 ============
+const SECTS = {
+    "青云宗":     {type: "正道", cultivateBonus: 0.2, desc: "正道第一大宗，修炼+20%"},
+    "天剑门":     {type: "正道", cultivateBonus: 0.3, desc: "剑修圣地，修炼+30%"},
+    "丹霞谷":     {type: "正道", cultivateBonus: 0.25, desc: "丹道宗师，炼丹成功率+15%"},
+    "合欢宗":     {type: "正道", cultivateBonus: 0.15, desc: "双修加成，道侣修行更快"},
+    "血魔殿":     {type: "魔道", cultivateBonus: 0.4, desc: "魔道大派，修炼+40%但心境-"},
+    "万鬼窟":     {type: "魔道", cultivateBonus: 0.35, desc: "御鬼之术，打怪掉灵石+30%"}
+};
+
+// ============ 每日任务 ============
+const DAILY_TASKS = [
+    {id: "cultivate_10", name: "修炼10次", target: 10, reward: {stone: 500, herb: 5}},
+    {id: "fight_5", name: "打怪5次", target: 5, reward: {stone: 1000, herb: 10}},
+    {id: "breakthrough_1", name: "突破1次大境界", target: 1, reward: {stone: 5000, herb: 20}},
+    {id: "boss_hit_3", name: "攻击BOSS 3次", target: 3, reward: {stone: 2000, herb: 15}},
+    {id: "chat_5", name: "聊天5次", target: 5, reward: {stone: 300, herb: 3}}
+];
+
+// ============ 灵脉争夺 ============
+const LEYLINE_INTERVAL = 1000 * 60 * 60; // 每小时刷新
+const leylinesRef = db.ref("leylines");
+
+function ensureLeylines(cb) {
+    leylinesRef.once("value", snap => {
+        let data = snap.val() || {};
+        const now = Date.now();
+        for (const key in data) {
+            if (now - data[key].time > LEYLINE_INTERVAL) delete data[key];
+        }
+        if (Object.keys(data).length === 0) {
+            const names = ["东胜灵脉", "西牛灵脉", "南瞻灵脉", "北俱灵脉"];
+            names.forEach(n => {
+                data[n] = {
+                    time: now,
+                    owner: null,
+                    power: 100000 + Math.floor(Math.random() * 1000000)
+                };
+            });
+        }
+        leylinesRef.set(data);
+        cb(data);
+    });
+}
+
+function claimLeyline(name) {
+    return new Promise(resolve => {
+        leylinesRef.transaction(data => {
+            if (!data || !data[name]) return data;
+            if (data[name].owner === playerName) return data; // 已经是你的
+            data[name].owner = playerName;
+            data[name].time = Date.now();
+            return data;
+        }, () => {
+            leylinesRef.once("value", snap => resolve(snap.val()));
+        });
+    });
+}
+
+// ============ 交易行 ============
+const marketRef = db.ref("market");
+
+function listItem(itemName, price, count) {
+    return marketRef.push({
+        seller: playerName,
+        itemName: itemName,
+        price: price,
+        count: count,
+        time: Date.now()
+    });
+}
+
+function fetchMarket() {
+    return new Promise(resolve => {
+        marketRef.once("value", snap => {
+            const data = snap.val() || {};
+            const list = Object.entries(data).map(([k, v]) => ({key: k, ...v}));
+            list.sort((a, b) => b.time - a.time);
+            resolve(list);
+        });
+    });
+}
+
+function buyMarketItem(key) {
+    return new Promise(resolve => {
+        marketRef.child(key).once("value", snap => {
+            const item = snap.val();
+            if (!item) { resolve(null); return; }
+            if (item.seller === playerName) {
+                resolve({error: "不能买自己挂的物品"});
+                return;
+            }
+            marketRef.child(key).remove();
+            resolve(item);
+        });
+    });
+}
+
+// ============ 抽奖 ============
+const LOTTERY_POOL = [
+    {name: "初级修为丹", weight: 40},
+    {name: "中级修为丹", weight: 25},
+    {name: "高级修为丹", weight: 15},
+    {name: "初级突破丹", weight: 10},
+    {name: "中级突破丹", weight: 5},
+    {name: "洗髓丹", weight: 3},
+    {name: "高级突破丹", weight: 2}
+];
